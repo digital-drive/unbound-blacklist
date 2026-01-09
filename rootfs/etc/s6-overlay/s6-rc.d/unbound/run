@@ -1,0 +1,41 @@
+#!/bin/sh
+# /etc/s6-overlay/s6-rc.d/unbound/run
+set -eu
+
+map_log_level() {
+  case "$1" in
+    ""|off|silent) echo "0"; return ;;
+    minimal) echo "0"; return ;;
+    standard|info) echo "1"; return ;;
+    verbose|debug) echo "2"; return ;;
+    trace) echo "3"; return ;;
+    trace2) echo "4"; return ;;
+  esac
+  if [ "$1" -ge 0 ] 2>/dev/null; then
+    echo "$1"
+    return
+  fi
+  echo "1"
+}
+
+LOG_LEVEL_RAW="${UNBOUND_LOG_LEVEL:-info}"
+VERBOSITY="$(map_log_level "$LOG_LEVEL_RAW")"
+export VERBOSITY
+
+if [ -x /command/s6-svdt ]; then
+  /command/s6-svdt -t /run/service/unbound 2>/dev/null || true
+elif command -v s6-svdt >/dev/null 2>&1; then
+  s6-svdt -t /run/service/unbound 2>/dev/null || true
+fi
+
+attempts=0
+until unbound-checkconf >/dev/null 2>&1; do
+  attempts=$((attempts + 1))
+  if [ "$attempts" -ge 50 ]; then
+    echo "unbound: waiting for configuration to stabilise..." >&2
+    attempts=0
+  fi
+  sleep 0.2
+done
+
+exec unbound -d -c /etc/unbound/unbound.conf

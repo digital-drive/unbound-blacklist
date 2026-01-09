@@ -1,0 +1,10 @@
+#!/bin/sh
+# /etc/cont-init.d/20-blacklist
+set -eu
+
+/usr/local/bin/blacklist-sync.sh || true
+
+if [ -f /etc/unbound/conf.d/50-blacklist.conf ]; then
+  chown unbound:unbound /etc/unbound/conf.d/50-blacklist.conf
+  chmod 640 /etc/unbound/conf.d/50-blacklist.conf
+fi

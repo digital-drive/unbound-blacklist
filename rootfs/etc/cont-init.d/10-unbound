@@ -1,0 +1,237 @@
+#!/bin/sh
+# /etc/cont-init.d/10-unbound
+set -eu
+
+CONFIG_DIR="/etc/unbound"
+CONF_D="${CONFIG_DIR}/conf.d"
+ACCESS_CONTROL_DEFAULT="0.0.0.0/0 allow ::0/0 allow"
+PRIVATE_SUFFIX_DEFAULT=".docker"
+PRIVATE_UPSTREAM_CONF="${CONF_D}/15-private-upstream.conf"
+
+map_log_level() {
+  case "$1" in
+    ""|off|silent) echo "0"; return ;;
+    minimal) echo "0"; return ;;
+    standard|info) echo "1"; return ;;
+    verbose|debug) echo "2"; return ;;
+    trace) echo "3"; return ;;
+    trace2) echo "4"; return ;;
+  esac
+  if [ "$1" -ge 0 ] 2>/dev/null; then
+    echo "$1"
+    return
+  fi
+  echo "1"
+}
+
+build_access_control_lines() {
+  local raw="$1" entry cidr action action_candidate pending
+  printf '%s\n' "$raw" \
+    | tr ',;' '  ' \
+    | tr -s ' ' '\n' \
+    | while read -r entry; do
+        [ -z "$entry" ] && continue
+        case "$entry" in
+          allow|allow_snoop|deny|refuse|deny_non_local)
+            if [ -n "${pending:-}" ]; then
+              printf '  access-control: %s %s\n' "$pending" "$entry"
+              pending=""
+            fi
+            continue
+            ;;
+        esac
+        if printf '%s' "$entry" | grep -q ':'; then
+          action_candidate="${entry##*:}"
+          case "$action_candidate" in
+            allow|allow_snoop|deny|refuse|deny_non_local)
+              cidr="${entry%:*}"
+              [ -n "$cidr" ] && printf '  access-control: %s %s\n' "$cidr" "$action_candidate"
+              pending=""
+              continue
+              ;;
+          esac
+        fi
+        if [ -n "${pending:-}" ]; then
+          printf '  access-control: %s allow\n' "$pending"
+        fi
+        pending="$entry"
+      done
+  if [ -n "${pending:-}" ]; then
+    printf '  access-control: %s allow\n' "$pending"
+  fi
+}
+
+normalize_forward_addr() {
+  local raw="$1"
+  raw="$(printf '%s' "$raw" | tr -d '[:space:]')"
+  [ -z "$raw" ] && return
+
+  local host="$raw"
+  local port=""
+
+  case "$raw" in
+    *"@"*)
+      host="${raw%%@*}"
+      port="${raw#*@}"
+      ;;
+  esac
+
+  if [ "${host#\[}" != "$host" ]; then
+    host="${host#\[}"
+    host="${host%]}"
+  fi
+
+  [ -z "$host" ] && return
+
+  if [ -n "$port" ]; then
+    printf '%s@%s\n' "$host" "$port"
+  else
+    printf '%s\n' "$host"
+  fi
+}
+
+collect_private_upstreams() {
+  local raw_sources="${PRIVATE_UPSTREAM_SERVERS:-}"
+  [ -z "$raw_sources" ] && return
+
+  printf '%s\n' "$raw_sources" \
+    | tr ',\t' '  ' \
+    | tr -s ' ' '\n' \
+    | while read -r entry; do
+        [ -z "$entry" ] && continue
+        normalize_forward_addr "$entry"
+      done \
+    | sort -u
+}
+
+mkdir -p "$CONF_D"
+
+LOG_LEVEL_RAW="${UNBOUND_LOG_LEVEL:-info}"
+VERBOSITY="$(map_log_level "$LOG_LEVEL_RAW")"
+LOG_QUERIES="no"
+case "$LOG_LEVEL_RAW" in
+  verbose|debug|trace|trace2) LOG_QUERIES="yes" ;;
+esac
+
+ACCESS_CONTROL_SNIPPET="$(build_access_control_lines "${DNS_ACCESS_CONTROL:-$ACCESS_CONTROL_DEFAULT}")"
+TRUST_ANCHOR="${DNSSEC_TRUST_ANCHOR:-/var/lib/unbound/root.key}"
+mkdir -p "$(dirname "$TRUST_ANCHOR")"
+chown unbound:unbound "$(dirname "$TRUST_ANCHOR")"
+if [ ! -f "$TRUST_ANCHOR" ]; then
+  if ! unbound-anchor -a "$TRUST_ANCHOR" >/dev/null 2>&1; then
+    echo "warning: failed to initialise DNSSEC trust anchor at ${TRUST_ANCHOR}" >&2
+  fi
+fi
+if [ -f "$TRUST_ANCHOR" ]; then
+  chown unbound:unbound "$TRUST_ANCHOR"
+  chmod 644 "$TRUST_ANCHOR"
+fi
+
+cat >"${CONFIG_DIR}/unbound.conf" <<EOF
+server:
+  directory: "${CONFIG_DIR}"
+  username: "unbound"
+  chroot: ""
+  pidfile: ""
+  logfile: ""
+  use-syslog: no
+  do-daemonize: no
+  verbosity: ${VERBOSITY}
+  log-queries: ${LOG_QUERIES}
+  interface: 0.0.0.0
+  interface: ::0
+  port: ${DNS_LISTEN_PORT:-53}
+$(printf '%s\n' "$ACCESS_CONTROL_SNIPPET")
+  edns-buffer-size: 1232
+  prefetch: yes
+  qname-minimisation: yes
+  module-config: "validator iterator"
+  auto-trust-anchor-file: "${TRUST_ANCHOR}"
+  include: "${CONF_D}/*.conf"
+EOF
+
+PRIVATE_SUFFIX="${PRIVATE_SUFFIX:-$PRIVATE_SUFFIX_DEFAULT}"
+case "$PRIVATE_SUFFIX" in
+  "") PRIVATE_SUFFIX="$PRIVATE_SUFFIX_DEFAULT" ;;
+  .*) ;;
+  *) PRIVATE_SUFFIX=".$PRIVATE_SUFFIX" ;;
+esac
+PRIVATE_SUFFIX_NAME="${PRIVATE_SUFFIX#.}"
+if [ -z "$PRIVATE_SUFFIX_NAME" ]; then
+  PRIVATE_SUFFIX_NAME="${PRIVATE_SUFFIX_DEFAULT#.}"
+fi
+PRIVATE_SUFFIX_ZONE="${PRIVATE_SUFFIX_NAME}."
+
+PRIVATE_UPSTREAM_TMP="$(mktemp)"
+PRIVATE_HAS_UPSTREAM="false"
+collect_private_upstreams >"$PRIVATE_UPSTREAM_TMP" || true
+if [ -s "$PRIVATE_UPSTREAM_TMP" ]; then
+  PRIVATE_HAS_UPSTREAM="true"
+fi
+
+if [ "$PRIVATE_HAS_UPSTREAM" = "true" ]; then
+  {
+    printf 'forward-zone:\n'
+    printf '  name: "%s"\n' "$PRIVATE_SUFFIX_ZONE"
+    while read -r addr; do
+      [ -z "$addr" ] && continue
+      printf '  forward-addr: %s\n' "$addr"
+    done <"$PRIVATE_UPSTREAM_TMP"
+    printf 'forward-zone:\n'
+    printf '  name: "10.in-addr.arpa."\n'
+    while read -r addr; do
+      [ -z "$addr" ] && continue
+      printf '  forward-addr: %s\n' "$addr"
+    done <"$PRIVATE_UPSTREAM_TMP"
+    for zone in 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31; do
+      printf 'forward-zone:\n'
+      printf '  name: "%s.172.in-addr.arpa."\n' "$zone"
+      while read -r addr; do
+        [ -z "$addr" ] && continue
+        printf '  forward-addr: %s\n' "$addr"
+      done <"$PRIVATE_UPSTREAM_TMP"
+    done
+    printf 'forward-zone:\n'
+    printf '  name: "168.192.in-addr.arpa."\n'
+    while read -r addr; do
+      [ -z "$addr" ] && continue
+      printf '  forward-addr: %s\n' "$addr"
+    done <"$PRIVATE_UPSTREAM_TMP"
+    for zone in c.f d.f; do
+      printf 'forward-zone:\n'
+      printf '  name: "%s.ip6.arpa."\n' "$zone"
+      while read -r addr; do
+        [ -z "$addr" ] && continue
+        printf '  forward-addr: %s\n' "$addr"
+      done <"$PRIVATE_UPSTREAM_TMP"
+    done
+    for zone in 8.e.f 9.e.f a.e.f b.e.f; do
+      printf 'forward-zone:\n'
+      printf '  name: "%s.ip6.arpa."\n' "$zone"
+      while read -r addr; do
+        [ -z "$addr" ] && continue
+        printf '  forward-addr: %s\n' "$addr"
+      done <"$PRIVATE_UPSTREAM_TMP"
+    done
+  } >"$PRIVATE_UPSTREAM_CONF"
+else
+  {
+    printf 'server:\n'
+    printf '  local-zone: "%s" always_nxdomain\n' "$PRIVATE_SUFFIX_ZONE"
+    printf '  local-zone: "10.in-addr.arpa." always_nxdomain\n'
+    for zone in 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31; do
+      printf '  local-zone: "%s.172.in-addr.arpa." always_nxdomain\n' "$zone"
+    done
+    printf '  local-zone: "168.192.in-addr.arpa." always_nxdomain\n'
+    for zone in c.f d.f; do
+      printf '  local-zone: "%s.ip6.arpa." always_nxdomain\n' "$zone"
+    done
+    for zone in 8.e.f 9.e.f a.e.f b.e.f; do
+      printf '  local-zone: "%s.ip6.arpa." always_nxdomain\n' "$zone"
+    done
+  } >"$PRIVATE_UPSTREAM_CONF"
+fi
+rm -f "$PRIVATE_UPSTREAM_TMP"
+
+chown unbound:unbound "${CONFIG_DIR}/unbound.conf"
+chmod 640 "${CONFIG_DIR}/unbound.conf"

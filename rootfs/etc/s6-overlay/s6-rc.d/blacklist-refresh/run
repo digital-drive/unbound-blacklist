@@ -1,0 +1,25 @@
+#!/bin/sh
+# /etc/s6-overlay/s6-rc.d/blacklist-refresh/run
+set -eu
+
+sleep_forever() {
+  while true; do
+    sleep 3600
+  done
+}
+
+refresh_seconds="${BLACKLIST_REFRESH_SECONDS:-600}"
+case "$refresh_seconds" in
+  ''|*[!0-9]*)
+    refresh_seconds=600
+    ;;
+esac
+
+if [ -z "${BLACKLIST_URL:-}" ] || [ "$refresh_seconds" -le 0 ]; then
+  sleep_forever
+fi
+
+while true; do
+  /usr/local/bin/blacklist-sync.sh || true
+  sleep "$refresh_seconds"
+done
