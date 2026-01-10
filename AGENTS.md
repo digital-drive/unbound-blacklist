@@ -3,8 +3,8 @@
 ## Purpose of the Image
 
 This image delivers a standalone Unbound resolver with a configurable
-domain blacklist. It accepts either a mounted blacklist file or a remote
-HTTP(S) URL, converts it into an Unbound configuration fragment, and
+IP blacklist. It accepts either a mounted blacklist file or a remote
+HTTP(S) URL, converts it into an Unbound response-IP fragment, and
 reloads Unbound when updates are available.
 
 ## Internal Components
@@ -21,8 +21,8 @@ reloads Unbound when updates are available.
   - `BLACKLIST_URL` (optional; overrides the local file)
 - The blacklist builder generates
   `/etc/unbound/conf.d/50-blacklist.conf`.
-- Domains are rendered as
-  `local-zone: "<domain>" always_nxdomain`.
+- IPs/netblocks are rendered as
+  `response-ip: <ip-netblock> always_nxdomain`.
 
 ### 3. Runtime Configuration
 
@@ -33,6 +33,7 @@ reloads Unbound when updates are available.
 - `PRIVATE_UPSTREAM_SERVERS` controls forwarding for private ranges and suffix.
 - `PRIVATE_SUFFIX` selects the private suffix (default `.docker`).
 - `BLACKLIST_REFRESH_SECONDS` enables periodic refresh when using a URL.
+- `BLACKLIST_REFRESH_INITIAL_SECONDS` sets the first delay after the initial sync.
 
 ## Expected Behavior
 

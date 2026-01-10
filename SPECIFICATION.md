@@ -4,10 +4,10 @@ Authoritative description of the `unbound-blacklist` container image.
 
 ## 1. Purpose
 
-Provide a lightweight Unbound DNS resolver that blocks domains listed in
-either a local file or a remote HTTP(S) blacklist. The image generates an
-Unbound configuration fragment at startup and reloads Unbound when the
-blacklist changes.
+Provide a lightweight Unbound DNS resolver that blocks responses
+containing blacklisted IPs listed in either a local file or a remote
+HTTP(S) blacklist. The image generates an Unbound response-IP fragment at
+startup and reloads Unbound when the blacklist changes.
 
 ## 2. Components
 
@@ -24,9 +24,10 @@ blacklist changes.
 
 | Variable                     | Default                      | Behaviour                                                                      |
 |-----------------------------|------------------------------|--------------------------------------------------------------------------------|
-| `BLACKLIST_FILE`            | `/etc/unbound/blacklist.txt` | Path to a local blacklist file (one domain per line).                          |
+| `BLACKLIST_FILE`            | `/etc/unbound/blacklist.txt` | Path to a local blacklist file (one IP or netblock per line).                  |
 | `BLACKLIST_URL`             | unset                        | When set, download this URL and use it instead of `BLACKLIST_FILE`.            |
 | `BLACKLIST_REFRESH_SECONDS` | `600`                        | When `BLACKLIST_URL` is set, re-fetch on this cadence and reload Unbound.       |
+| `BLACKLIST_REFRESH_INITIAL_SECONDS`| `600`                | First refresh delay after the initial sync when using `BLACKLIST_URL`.          |
 | `UNBOUND_LOG_LEVEL`         | `info`                       | Unbound verbosity (`off`, `minimal`, `info`, `verbose`, `debug`, `trace`).      |
 | `DNS_LISTEN_PORT`           | `53`                         | TCP/UDP port Unbound listens on inside the container.                          |
 | `DNS_ACCESS_CONTROL`        | `0.0.0.0/0 allow ::0/0 allow`| Access-control entries applied to Unbound.                                     |
@@ -40,18 +41,18 @@ Only the variables above are supported.
 
 Blacklist input rules:
 
-- One domain per line, such as `ads.example.com`.
+- One IP or CIDR netblock per line, such as `203.0.113.10` or `2001:db8::/64`.
 - Empty lines are ignored.
 - Lines starting with `#` are treated as comments and ignored.
-- Duplicate domains are removed.
+- Duplicate entries are removed.
 
-Each domain is rendered into `/etc/unbound/conf.d/50-blacklist.conf` as:
+Each entry is rendered into `/etc/unbound/conf.d/50-blacklist.conf` as:
 
 ```
-local-zone: "<domain>" always_nxdomain
+response-ip: <ip-netblock> always_nxdomain
 ```
 
-This guarantees blocked domains fail fast without upstream recursion.
+This guarantees responses containing those IPs return NXDOMAIN.
 
 ## 5. Startup Flow
 
@@ -68,11 +69,11 @@ This guarantees blocked domains fail fast without upstream recursion.
 
 ## 6. Failure Modes & Limitations
 
-- An unreachable `BLACKLIST_URL` keeps the last known blacklist. The
-  resolver still starts unless the source file is missing and no cache
-  exists.
-- Invalid domain lines are skipped.
-- The image does not validate that blocked domains are effective beyond
+- An unreachable `BLACKLIST_URL` keeps the last known blacklist if a
+  cache exists. When no cache or local file exists, a warning is logged
+  and the blacklist fragment is generated empty.
+- Invalid IP/netblock lines are skipped.
+- The image does not validate that blocked IPs are effective beyond
   Unbound configuration syntax checks.
 - DNSSEC validation is enabled by default using `auto-trust-anchor-file`.
 - EDNS is enabled with a 1232-byte buffer size.
