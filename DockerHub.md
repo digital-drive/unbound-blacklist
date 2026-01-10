@@ -4,7 +4,7 @@ description: Unbound DNS resolver on Alpine with a managed IP blacklist.
 
 # DockerHub.md
 
-Unbound DNS resolver built on `registry.digital-drive.io/alpine/3.22` with
+Unbound DNS resolver built on `registry.digital-drive.io/debian/trixie` with
 an optional blacklist file or remote URL. The container renders a dedicated
 Unbound response-IP fragment for the blacklist and reloads when the list changes.
 

@@ -1,16 +1,18 @@
-FROM registry.digital-drive.io/alpine/3.22
+FROM registry.digital-drive.io/debian/trixie
 
 LABEL maintainer="Maxence Winandy <maxence.winandy@digital-drive.io>"
 
 RUN set -eux; \
-    apk add --no-cache \
-        bind-tools \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
+        dns-root-data \
+        dnsutils \
         inotify-tools \
         unbound \
     ; \
-    rm -rf /var/cache/apk/*
+    rm -rf /var/lib/apt/lists/*
 
 COPY rootfs/ /
 

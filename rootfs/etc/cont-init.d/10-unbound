@@ -135,6 +135,11 @@ chown unbound:unbound "$(dirname "$TRUST_ANCHOR")"
 if [ ! -f "$TRUST_ANCHOR" ]; then
   if ! unbound-anchor -a "$TRUST_ANCHOR" >/dev/null 2>&1; then
     echo "warning: failed to initialise DNSSEC trust anchor at ${TRUST_ANCHOR}" >&2
+    if [ -f /usr/share/dns/root.key ]; then
+      cp /usr/share/dns/root.key "$TRUST_ANCHOR"
+    else
+      : >"$TRUST_ANCHOR"
+    fi
   fi
 fi
 if [ -f "$TRUST_ANCHOR" ]; then

@@ -1,7 +1,7 @@
 # README.md
 
 Unbound DNS resolver with a managed IP blacklist source. The image loads
-Unbound on top of `registry.digital-drive.io/alpine/3.22` (s6-overlay)
+Unbound on top of `registry.digital-drive.io/debian/trixie` (s6-overlay)
 and generates an Unbound include file from a local blacklist file or a
 remote URL.
 

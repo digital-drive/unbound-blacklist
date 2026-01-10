@@ -11,7 +11,7 @@ reloads Unbound when updates are available.
 
 ### 1. Base Image and Process Supervisor
 
-- Base image: `registry.digital-drive.io/alpine/3.22` (s6-overlay).
+- Base image: `registry.digital-drive.io/debian/trixie` (s6-overlay).
 - PID 1 is `/init`, and Unbound runs as an s6 longrun in the foreground.
 
 ### 2. Blacklist Pipeline
@@ -44,7 +44,7 @@ reloads Unbound when updates are available.
 
 ## Files of Interest
 
-- `Dockerfile` builds the Unbound image on Alpine 3.22 with s6-overlay.
+- `Dockerfile` builds the Unbound image on Debian Trixie with s6-overlay.
 - `rootfs/etc/cont-init.d/*` renders Unbound config and blacklist fragments.
 - `rootfs/etc/s6-overlay/s6-rc.d/unbound/run` runs Unbound in the foreground.
 - `rootfs/etc/unbound/conf.d/50-blacklist.conf` is generated at runtime.
