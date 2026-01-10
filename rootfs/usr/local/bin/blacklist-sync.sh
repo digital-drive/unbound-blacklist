@@ -7,6 +7,7 @@ OUTPUT_CONF="${CONF_DIR}/50-blacklist.conf"
 BLACKLIST_FILE="${BLACKLIST_FILE:-/etc/unbound/blacklist.txt}"
 BLACKLIST_URL="${BLACKLIST_URL:-}"
 CACHE_FILE="/etc/unbound/blacklist.remote.txt"
+FIRST_SYNC_MARKER="/run/blacklist-first-sync.done"
 
 log() {
   printf '%s\n' "$*" >&2
@@ -116,4 +117,13 @@ if [ -x /command/s6-svc ] && [ -d /run/service/unbound ]; then
   /command/s6-svc -h /run/service/unbound 2>/dev/null || true
 elif command -v s6-svc >/dev/null 2>&1 && [ -d /run/service/unbound ]; then
   s6-svc -h /run/service/unbound 2>/dev/null || true
+fi
+
+if [ -n "$source_file" ] && [ ! -f "$FIRST_SYNC_MARKER" ]; then
+  touch "$FIRST_SYNC_MARKER"
+  if [ -x /command/s6-svc ] && [ -d /run/service/unbound ]; then
+    /command/s6-svc -r /run/service/unbound 2>/dev/null || true
+  elif command -v s6-svc >/dev/null 2>&1 && [ -d /run/service/unbound ]; then
+    s6-svc -r /run/service/unbound 2>/dev/null || true
+  fi
 fi
