@@ -8,6 +8,7 @@ BLACKLIST_FILE="${BLACKLIST_FILE:-/etc/unbound/blacklist.txt}"
 BLACKLIST_URL="${BLACKLIST_URL:-}"
 CACHE_FILE="/etc/unbound/blacklist.remote.txt"
 FIRST_SYNC_MARKER="/run/blacklist-first-sync.done"
+OUTPUT_CHANGED="true"
 
 log() {
   printf '%s\n' "$*" >&2
@@ -98,6 +99,11 @@ render_conf() {
       done
     fi
   } >"$tmp"
+  if [ -f "$OUTPUT_CONF" ] && cmp -s "$tmp" "$OUTPUT_CONF"; then
+    rm -f "$tmp"
+    OUTPUT_CHANGED="false"
+    return
+  fi
   mv "$tmp" "$OUTPUT_CONF"
   chown unbound:unbound "$OUTPUT_CONF"
   chmod 640 "$OUTPUT_CONF"
@@ -113,17 +119,21 @@ if command -v unbound-checkconf >/dev/null 2>&1; then
   fi
 fi
 
-if [ -x /command/s6-svc ] && [ -d /run/service/unbound ]; then
-  /command/s6-svc -h /run/service/unbound 2>/dev/null || true
-elif command -v s6-svc >/dev/null 2>&1 && [ -d /run/service/unbound ]; then
-  s6-svc -h /run/service/unbound 2>/dev/null || true
+if [ "$OUTPUT_CHANGED" = "true" ]; then
+  if [ -x /command/s6-svc ] && [ -d /run/service/unbound ]; then
+    /command/s6-svc -h /run/service/unbound 2>/dev/null || true
+  elif command -v s6-svc >/dev/null 2>&1 && [ -d /run/service/unbound ]; then
+    s6-svc -h /run/service/unbound 2>/dev/null || true
+  fi
 fi
 
 if [ -n "$source_file" ] && [ ! -f "$FIRST_SYNC_MARKER" ]; then
   touch "$FIRST_SYNC_MARKER"
-  if [ -x /command/s6-svc ] && [ -d /run/service/unbound ]; then
-    /command/s6-svc -r /run/service/unbound 2>/dev/null || true
-  elif command -v s6-svc >/dev/null 2>&1 && [ -d /run/service/unbound ]; then
-    s6-svc -r /run/service/unbound 2>/dev/null || true
+  if [ "$OUTPUT_CHANGED" = "true" ]; then
+    if [ -x /command/s6-svc ] && [ -d /run/service/unbound ]; then
+      /command/s6-svc -r /run/service/unbound 2>/dev/null || true
+    elif command -v s6-svc >/dev/null 2>&1 && [ -d /run/service/unbound ]; then
+      s6-svc -r /run/service/unbound 2>/dev/null || true
+    fi
   fi
 fi
