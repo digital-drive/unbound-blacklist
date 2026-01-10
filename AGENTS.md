@@ -17,8 +17,8 @@ reloads Unbound when updates are available.
 ### 2. Blacklist Pipeline
 
 - Input sources:
-  - `BLACKLIST_FILE` (default `/etc/unbound/blacklist.txt`)
-  - `BLACKLIST_URL` (optional; overrides the local file)
+    - `BLACKLIST_FILE` (default `/etc/unbound/blacklist.txt`)
+    - `BLACKLIST_URL` (optional; overrides the local file)
 - The blacklist builder generates
   `/etc/unbound/conf.d/50-blacklist.conf`.
 - IPs/netblocks are rendered as

@@ -1,18 +1,18 @@
 ---
-description: Unbound DNS resolver on Alpine with a managed IP blacklist.
+description: Unbound DNS resolver on Debian Trixie with a managed IP blacklist.
 ---
 
 # DockerHub.md
 
-Unbound DNS resolver built on `registry.digital-drive.io/debian/trixie` with
-an optional blacklist file or remote URL. The container renders a dedicated
-Unbound response-IP fragment for the blacklist and reloads when the list changes.
+Unbound DNS resolver built on `digital-drive.io/debian/trixie`.
+The container renders an Unbound response-IP fragment from a local blacklist
+file or a remote URL and reloads when the list changes.
 
 ## Highlights
 
 - Runs Unbound under s6-overlay with PID 1 set to `/init`.
 - Supports a local blacklist file or HTTP(S) download.
-- Optional refresh interval to keep the blacklist current.
+- Refresh interval for remote blacklist sync.
 - Uses `response-ip: <ip-netblock> always_nxdomain` for fast blocking.
 - Exposes standard DNS over UDP/TCP on port 53.
 - DNSSEC validation and EDNS are enabled for modern resolvers.
@@ -26,7 +26,7 @@ docker build -t digitaldriveio/unbound-blacklist .
 docker run --name unbound-blacklist \
   -p 53:53/udp -p 53:53/tcp \
   -v /path/to/blacklist.txt:/etc/unbound/blacklist.txt:ro \
-  digitaldriveio/unbound-blacklist:snapshot
+  digitaldriveio/unbound-blacklist
 ```
 
 ## Runtime configuration
@@ -38,7 +38,7 @@ docker run --name unbound-blacklist \
   re-fetch and reload automatically. Use `BLACKLIST_REFRESH_INITIAL_SECONDS`
   for the first delay after the initial sync.
 - **Public upstreams:** Set `PUBLIC_UPSTREAM_SERVERS` to forward public DNS
-  queries (default: `1.1.1.1 8.8.8.8 9.9.9.9`).
+  queries (`1.1.1.1 8.8.8.8 9.9.9.9`).
 - **Logging:** Control verbosity with `UNBOUND_LOG_LEVEL`.
 - **Access control:** Tune with `DNS_ACCESS_CONTROL` (Unbound format).
 

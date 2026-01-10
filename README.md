@@ -1,9 +1,9 @@
 # README.md
 
 Unbound DNS resolver with a managed IP blacklist source. The image loads
-Unbound on top of `registry.digital-drive.io/debian/trixie` (s6-overlay)
+Unbound on top of `digital-drive.io/debian/trixie` (s6-overlay)
 and generates an Unbound include file from a local blacklist file or a
-remote URL.
+remote URL. Image: https://hub.docker.com/r/digitaldriveio/unbound-blacklist
 
 ## Features
 
@@ -50,19 +50,19 @@ docker run --rm -p 53:53/udp -p 53:53/tcp \
 
 ## Configuration
 
-| Variable                    | Default                          | Description                                                                 |
-|----------------------------|----------------------------------|-----------------------------------------------------------------------------|
-| `BLACKLIST_FILE`           | `/etc/unbound/blacklist.txt`     | Path to a file containing one IP or netblock per line.                      |
-| `BLACKLIST_URL`            | unset                            | HTTP(S) URL to fetch the blacklist. When set, it replaces the local file.   |
-| `BLACKLIST_REFRESH_SECONDS`| `600`                            | When `BLACKLIST_URL` is set, re-fetches on this interval and reloads.         |
-| `BLACKLIST_REFRESH_INITIAL_SECONDS`| `600`                   | First refresh delay after the initial sync when using `BLACKLIST_URL`.       |
-| `UNBOUND_LOG_LEVEL`        | `info`                           | Unbound verbosity (`off`, `minimal`, `info`, `verbose`, `debug`, `trace`).   |
-| `DNS_LISTEN_PORT`          | `53`                             | TCP/UDP port Unbound listens on inside the container.                        |
-| `DNS_ACCESS_CONTROL`       | `0.0.0.0/0 allow ::0/0 allow`     | Access-control entries applied to Unbound.                                   |
-| `DNSSEC_TRUST_ANCHOR`      | `/var/lib/unbound/root.key`      | Override the DNSSEC trust anchor path.                                       |
-| `PRIVATE_UPSTREAM_SERVERS` | unset                            | Comma/space-separated upstreams for private zones and suffix.                |
-| `PUBLIC_UPSTREAM_SERVERS`  | `1.1.1.1 8.8.8.8 9.9.9.9`         | Comma/space-separated upstreams for public resolution (forward-zone ".").    |
-| `PRIVATE_SUFFIX`           | `.docker`                        | Private suffix handled by the private upstream or blocked by default.        |
+| Variable                            | Default                       | Description                                                                |
+|-------------------------------------|-------------------------------|----------------------------------------------------------------------------|
+| `BLACKLIST_FILE`                    | `/etc/unbound/blacklist.txt`  | Path to a file containing one IP or netblock per line.                     |
+| `BLACKLIST_URL`                     | unset                         | HTTP(S) URL to fetch the blacklist. When set, it replaces the local file.  |
+| `BLACKLIST_REFRESH_SECONDS`         | `600`                         | When `BLACKLIST_URL` is set, re-fetches on this interval and reloads.      |
+| `BLACKLIST_REFRESH_INITIAL_SECONDS` | `600`                         | First refresh delay after the initial sync when using `BLACKLIST_URL`.     |
+| `UNBOUND_LOG_LEVEL`                 | `info`                        | Unbound verbosity (`off`, `minimal`, `info`, `verbose`, `debug`, `trace`). |
+| `DNS_LISTEN_PORT`                   | `53`                          | TCP/UDP port Unbound listens on inside the container.                      |
+| `DNS_ACCESS_CONTROL`                | `0.0.0.0/0 allow ::0/0 allow` | Access-control entries applied to Unbound.                                 |
+| `DNSSEC_TRUST_ANCHOR`               | `/var/lib/unbound/root.key`   | Override the DNSSEC trust anchor path.                                     |
+| `PRIVATE_UPSTREAM_SERVERS`          | unset                         | Comma/space-separated upstreams for private zones and suffix.              |
+| `PUBLIC_UPSTREAM_SERVERS`           | `1.1.1.1 8.8.8.8 9.9.9.9`     | Comma/space-separated upstreams for public resolution (forward-zone ".").  |
+| `PRIVATE_SUFFIX`                    | `.docker`                     | Private suffix handled by the private upstream or blocked by default.      |
 
 Blacklist file format:
 
