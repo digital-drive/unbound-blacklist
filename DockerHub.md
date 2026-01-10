@@ -4,25 +4,16 @@ description: Unbound DNS resolver on Debian Trixie with a managed IP blacklist.
 
 # DockerHub.md
 
-Unbound DNS resolver built on `digital-drive.io/debian/trixie`.
-The container renders an Unbound response-IP fragment from a local blacklist
-file or a remote URL and reloads when the list changes.
+## Quick reference
 
-## Highlights
-
-- Runs Unbound under s6-overlay with PID 1 set to `/init`.
-- Supports a local blacklist file or HTTP(S) download.
-- Refresh interval for remote blacklist sync.
-- Uses `response-ip: <ip-netblock> always_nxdomain` for fast blocking.
-- Exposes standard DNS over UDP/TCP on port 53.
-- DNSSEC validation and EDNS are enabled for modern resolvers.
-- Private reverse zones and a custom suffix are blocked by default unless an upstream is configured.
+- Maintained by: Maxence Winandy from Digital Drive
+- Source: https://github.com/digital-drive/unbound-blacklist
+- Where to get help: https://github.com/digital-drive/unbound-blacklist/issues
+- Supported architectures: amd64, arm64
 
 ## Quickstart
 
 ```bash
-docker build -t digitaldriveio/unbound-blacklist .
-
 docker run --name unbound-blacklist \
   -p 53:53/udp -p 53:53/tcp \
   -v /path/to/blacklist.txt:/etc/unbound/blacklist.txt:ro \
@@ -42,6 +33,16 @@ docker run --name unbound-blacklist \
 - **Logging:** Control verbosity with `UNBOUND_LOG_LEVEL`.
 - **Access control:** Tune with `DNS_ACCESS_CONTROL` (Unbound format).
 
+## Highlights
+
+- Runs Unbound under s6-overlay with PID 1 set to `/init`.
+- Supports a local blacklist file or HTTP(S) download.
+- Refresh interval for remote blacklist sync.
+- Uses `response-ip: <ip-netblock> always_nxdomain` for fast blocking.
+- Exposes standard DNS over UDP/TCP on port 53.
+- DNSSEC validation and EDNS are enabled for modern resolvers.
+- Private reverse zones and a custom suffix are blocked by default unless an upstream is configured.
+
 ## Notes
 
 - The generated blacklist fragment is stored under
@@ -49,3 +50,7 @@ docker run --name unbound-blacklist \
 - The blacklist file should contain one IP or CIDR netblock per line.
 - Use named volumes if you want the downloaded blacklist cached across
   container restarts.
+
+## License
+
+GPL-3.0. See https://github.com/digital-drive/unbound-blacklist/blob/main/LICENSE
