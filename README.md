@@ -40,6 +40,14 @@ docker run --rm -p 53:53/udp -p 53:53/tcp \
   unbound-blacklist
 ```
 
+Run with public upstream resolvers:
+
+```bash
+docker run --rm -p 53:53/udp -p 53:53/tcp \
+  -e PUBLIC_UPSTREAM_SERVERS="1.1.1.1 8.8.8.8" \
+  unbound-blacklist
+```
+
 ## Configuration
 
 | Variable                    | Default                          | Description                                                                 |
@@ -53,6 +61,7 @@ docker run --rm -p 53:53/udp -p 53:53/tcp \
 | `DNS_ACCESS_CONTROL`       | `0.0.0.0/0 allow ::0/0 allow`     | Access-control entries applied to Unbound.                                   |
 | `DNSSEC_TRUST_ANCHOR`      | `/var/lib/unbound/root.key`      | Override the DNSSEC trust anchor path.                                       |
 | `PRIVATE_UPSTREAM_SERVERS` | unset                            | Comma/space-separated upstreams for private zones and suffix.                |
+| `PUBLIC_UPSTREAM_SERVERS`  | `1.1.1.1 8.8.8.8 9.9.9.9`         | Comma/space-separated upstreams for public resolution (forward-zone ".").    |
 | `PRIVATE_SUFFIX`           | `.docker`                        | Private suffix handled by the private upstream or blocked by default.        |
 
 Blacklist file format:

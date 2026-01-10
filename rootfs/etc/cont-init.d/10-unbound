@@ -7,6 +7,7 @@ CONF_D="${CONFIG_DIR}/conf.d"
 ACCESS_CONTROL_DEFAULT="0.0.0.0/0 allow ::0/0 allow"
 PRIVATE_SUFFIX_DEFAULT=".docker"
 PRIVATE_UPSTREAM_CONF="${CONF_D}/15-private-upstream.conf"
+PUBLIC_UPSTREAM_CONF="${CONF_D}/20-public-upstream.conf"
 
 map_log_level() {
   case "$1" in
@@ -92,6 +93,20 @@ normalize_forward_addr() {
 
 collect_private_upstreams() {
   local raw_sources="${PRIVATE_UPSTREAM_SERVERS:-}"
+  [ -z "$raw_sources" ] && return
+
+  printf '%s\n' "$raw_sources" \
+    | tr ',\t' '  ' \
+    | tr -s ' ' '\n' \
+    | while read -r entry; do
+        [ -z "$entry" ] && continue
+        normalize_forward_addr "$entry"
+      done \
+    | sort -u
+}
+
+collect_public_upstreams() {
+  local raw_sources="${PUBLIC_UPSTREAM_SERVERS:-1.1.1.1 8.8.8.8 9.9.9.9}"
   [ -z "$raw_sources" ] && return
 
   printf '%s\n' "$raw_sources" \
@@ -232,6 +247,27 @@ else
   } >"$PRIVATE_UPSTREAM_CONF"
 fi
 rm -f "$PRIVATE_UPSTREAM_TMP"
+
+PUBLIC_UPSTREAM_TMP="$(mktemp)"
+PUBLIC_HAS_UPSTREAM="false"
+collect_public_upstreams >"$PUBLIC_UPSTREAM_TMP" || true
+if [ -s "$PUBLIC_UPSTREAM_TMP" ]; then
+  PUBLIC_HAS_UPSTREAM="true"
+fi
+
+if [ "$PUBLIC_HAS_UPSTREAM" = "true" ]; then
+  {
+    printf 'forward-zone:\n'
+    printf '  name: "."\n'
+    while read -r addr; do
+      [ -z "$addr" ] && continue
+      printf '  forward-addr: %s\n' "$addr"
+    done <"$PUBLIC_UPSTREAM_TMP"
+  } >"$PUBLIC_UPSTREAM_CONF"
+else
+  rm -f "$PUBLIC_UPSTREAM_CONF"
+fi
+rm -f "$PUBLIC_UPSTREAM_TMP"
 
 chown unbound:unbound "${CONFIG_DIR}/unbound.conf"
 chmod 640 "${CONFIG_DIR}/unbound.conf"

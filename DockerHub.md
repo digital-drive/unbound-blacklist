@@ -37,6 +37,8 @@ docker run --name unbound-blacklist \
 - **Refresh cadence:** Set `BLACKLIST_REFRESH_SECONDS` to a value > 0 to
   re-fetch and reload automatically. Use `BLACKLIST_REFRESH_INITIAL_SECONDS`
   for the first delay after the initial sync.
+- **Public upstreams:** Set `PUBLIC_UPSTREAM_SERVERS` to forward public DNS
+  queries (default: `1.1.1.1 8.8.8.8 9.9.9.9`).
 - **Logging:** Control verbosity with `UNBOUND_LOG_LEVEL`.
 - **Access control:** Tune with `DNS_ACCESS_CONTROL` (Unbound format).
 

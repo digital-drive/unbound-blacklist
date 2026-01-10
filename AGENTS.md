@@ -31,6 +31,7 @@ reloads Unbound when updates are available.
 - `UNBOUND_LOG_LEVEL` sets Unbound verbosity.
 - `DNSSEC_TRUST_ANCHOR` overrides the DNSSEC trust anchor path.
 - `PRIVATE_UPSTREAM_SERVERS` controls forwarding for private ranges and suffix.
+- `PUBLIC_UPSTREAM_SERVERS` controls forwarding for public DNS queries (default: `1.1.1.1 8.8.8.8 9.9.9.9`).
 - `PRIVATE_SUFFIX` selects the private suffix (default `.docker`).
 - `BLACKLIST_REFRESH_SECONDS` enables periodic refresh when using a URL.
 - `BLACKLIST_REFRESH_INITIAL_SECONDS` sets the first delay after the initial sync.

@@ -33,6 +33,7 @@ startup and reloads Unbound when the blacklist changes.
 | `DNS_ACCESS_CONTROL`        | `0.0.0.0/0 allow ::0/0 allow`| Access-control entries applied to Unbound.                                     |
 | `DNSSEC_TRUST_ANCHOR`       | `/var/lib/unbound/root.key`  | Path to the DNSSEC trust anchor consumed by Unbound.                           |
 | `PRIVATE_UPSTREAM_SERVERS`  | unset                        | Upstreams for private zones and suffix (comma/space separated).               |
+| `PUBLIC_UPSTREAM_SERVERS`   | `1.1.1.1 8.8.8.8 9.9.9.9`     | Upstreams for public resolution (forward-zone ".").                           |
 | `PRIVATE_SUFFIX`            | `.docker`                    | Private suffix handled by the private upstream or blocked by default.         |
 
 Only the variables above are supported.
