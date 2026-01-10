@@ -4,6 +4,7 @@ LABEL maintainer="Maxence Winandy <maxence.winandy@digital-drive.io>"
 
 RUN set -eux; \
     apk add --no-cache \
+        bind-tools \
         ca-certificates \
         curl \
         inotify-tools \
@@ -22,3 +23,5 @@ RUN chmod +x \
     /usr/local/bin/blacklist-sync.sh
 
 ENTRYPOINT ["/init"]
+
+HEALTHCHECK --interval=15s --timeout=5s --retries=3 CMD sh -c 'dig @127.0.0.1 -p "${DNS_LISTEN_PORT:-53}" example.org A +time=2 +tries=1 +short >/dev/null'
