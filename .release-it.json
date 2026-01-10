@@ -1,0 +1,18 @@
+{
+  "git": {
+    "requireCleanWorkingDir": true,
+    "commit": true,
+    "commitMessage": "chore(release): ${version}",
+    "tag": true,
+    "tagName": "v${version}",
+    "push": true
+  },
+  "github": false,
+  "gitlab": false,
+  "npm": false,
+  "hooks": {
+    "before:init": "git pull --rebase",
+    "before:git:release": "powershell -Command \"$ctx='{\\\"version\\\":\\\"${version}\\\",\\\"currentTag\\\":\\\"v${version}\\\"}'; Set-Content -Path .release-it-changelog-context.json -Value $ctx -Encoding ascii\" && npx conventional-changelog -p angular -i CHANGELOG.md -s --no-linkify --no-commit-links -c .release-it-changelog-context.json && powershell -Command \"$c=Get-Content -Raw CHANGELOG.md; $c=$c -replace '\\s*\\(\\[[0-9a-f]{7}\\]\\([^\\)]+\\)\\)',''; $c=$c -replace '(?m)^# CHANGELOG\\.md\\s*',''; if (-not $c.StartsWith('# CHANGELOG.md')) { $c='# CHANGELOG.md'+[Environment]::NewLine+[Environment]::NewLine+$c }; Set-Content -Path CHANGELOG.md -Value $c -Encoding ascii\" && powershell -Command \"code -w CHANGELOG.md\" && powershell -Command \"Remove-Item -Force .release-it-changelog-context.json\" && git add CHANGELOG.md",
+    "after:release": "echo \"Release ${version} done on GitLab\""
+  }
+}
