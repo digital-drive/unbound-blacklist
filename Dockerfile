@@ -2,6 +2,8 @@ FROM registry.digital-drive.io/debian/trixie
 
 LABEL maintainer="Maxence Winandy <maxence.winandy@digital-drive.io>"
 
+ENV ENABLE_CRON=false
+
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
