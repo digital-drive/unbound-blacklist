@@ -98,6 +98,8 @@ render_conf() {
     fi
   } >"$tmp"
   mv "$tmp" "$OUTPUT_CONF"
+  chown unbound:unbound "$OUTPUT_CONF"
+  chmod 640 "$OUTPUT_CONF"
 }
 
 mkdir -p "$CONF_DIR"
