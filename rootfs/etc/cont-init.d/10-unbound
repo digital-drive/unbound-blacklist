@@ -145,7 +145,7 @@ $(printf '%s\n' "$ACCESS_CONTROL_SNIPPET")
   edns-buffer-size: 1232
   prefetch: yes
   qname-minimisation: yes
-  module-config: "validator iterator"
+  module-config: "respip validator iterator"
   auto-trust-anchor-file: "${TRUST_ANCHOR}"
   include: "${CONF_D}/*.conf"
 EOF

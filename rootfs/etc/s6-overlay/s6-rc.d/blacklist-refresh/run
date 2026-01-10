@@ -15,11 +15,24 @@ case "$refresh_seconds" in
     ;;
 esac
 
+initial_seconds="${BLACKLIST_REFRESH_INITIAL_SECONDS:-$refresh_seconds}"
+case "$initial_seconds" in
+  ''|*[!0-9]*)
+    initial_seconds="$refresh_seconds"
+    ;;
+esac
+
 if [ -z "${BLACKLIST_URL:-}" ] || [ "$refresh_seconds" -le 0 ]; then
   sleep_forever
 fi
 
+first_run="true"
 while true; do
   /usr/local/bin/blacklist-sync.sh || true
+  if [ "$first_run" = "true" ]; then
+    first_run="false"
+    sleep "$initial_seconds"
+    continue
+  fi
   sleep "$refresh_seconds"
 done

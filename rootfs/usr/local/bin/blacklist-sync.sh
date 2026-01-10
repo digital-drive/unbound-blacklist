@@ -33,33 +33,47 @@ select_source() {
       echo "$CACHE_FILE"
       return 0
     fi
-    log "error: failed to fetch blacklist and no cache available"
-    return 1
+    log "warning: failed to fetch blacklist and no cache available"
+    echo ""
+    return 0
   fi
   if [ -f "$BLACKLIST_FILE" ]; then
     echo "$BLACKLIST_FILE"
     return 0
   fi
-  log "error: blacklist file not found at ${BLACKLIST_FILE}"
-  return 1
+  log "warning: blacklist file not found at ${BLACKLIST_FILE}"
+  echo ""
+  return 0
 }
 
-sanitize_domains() {
+sanitize_ips() {
   awk '
-    BEGIN { }
+    function is_ipv4(addr) {
+      return addr ~ /^[0-9]{1,3}(\.[0-9]{1,3}){3}$/
+    }
+    function is_ipv6(addr) {
+      return addr ~ /:/
+    }
     {
       gsub(/\r/, "", $0)
       sub(/#.*/, "", $0)
       gsub(/^[ \t]+|[ \t]+$/, "", $0)
       if ($0 == "") next
       n = split($0, fields, /[ \t]+/)
-      if (n >= 2 && fields[1] ~ /^[0-9a-fA-F:.]+$/) {
-        domain = fields[2]
-      } else {
-        domain = fields[1]
+      ip = fields[1]
+      if (ip == "") next
+      if (ip ~ /\//) {
+        print ip
+        next
       }
-      if (domain == "") next
-      print domain
+      if (is_ipv4(ip)) {
+        print ip "/32"
+        next
+      }
+      if (is_ipv6(ip)) {
+        print ip "/128"
+        next
+      }
     }
   '
 }
@@ -69,11 +83,18 @@ render_conf() {
   local tmp
   tmp="$(mktemp)"
   {
-    printf '# Generated from %s\n' "$source"
-    sanitize_domains <"$source" | sort -u | while read -r domain; do
-      [ -z "$domain" ] && continue
-      printf 'local-zone: "%s" always_nxdomain\n' "$domain"
-    done
+    if [ -n "$source" ]; then
+      printf '# Generated from %s\n' "$source"
+    else
+      printf '# Generated without a blacklist source\n'
+    fi
+    printf 'server:\n'
+    if [ -n "$source" ]; then
+      sanitize_ips <"$source" | sort -u | while read -r netblock; do
+        [ -z "$netblock" ] && continue
+        printf '  response-ip: %s always_nxdomain\n' "$netblock"
+      done
+    fi
   } >"$tmp"
   mv "$tmp" "$OUTPUT_CONF"
 }
