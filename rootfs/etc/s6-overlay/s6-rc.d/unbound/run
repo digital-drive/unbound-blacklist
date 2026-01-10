@@ -1,5 +1,5 @@
-#!/bin/sh
-# /etc/s6-overlay/s6-rc.d/unbound/run
+#!/command/with-contenv bash
+
 set -eu
 
 map_log_level() {

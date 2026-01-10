@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/command/with-contenv bash
+
 set -eu
 
 CONF_DIR="/etc/unbound/conf.d"

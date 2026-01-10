@@ -1,5 +1,5 @@
-#!/bin/sh
-# /etc/cont-init.d/10-unbound
+#!/command/with-contenv bash
+
 set -eu
 
 CONFIG_DIR="/etc/unbound"

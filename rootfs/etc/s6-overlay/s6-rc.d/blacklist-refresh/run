@@ -1,5 +1,5 @@
-#!/bin/sh
-# /etc/s6-overlay/s6-rc.d/blacklist-refresh/run
+#!/command/with-contenv bash
+
 set -eu
 
 sleep_forever() {

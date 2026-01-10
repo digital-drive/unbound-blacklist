@@ -1,5 +1,5 @@
-#!/bin/sh
-# /etc/cont-init.d/20-blacklist
+#!/command/with-contenv bash
+
 set -eu
 
 /usr/local/bin/blacklist-sync.sh || true
