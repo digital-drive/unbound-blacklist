@@ -11,7 +11,7 @@ reloads Unbound when updates are available.
 
 ### 1. Base Image and Process Supervisor
 
-- Base image: `registry.digital-drive.io/debian/trixie` (s6-overlay).
+- Base image: `registry.digital-drive.io/tools/unbound`.
 - PID 1 is `/init`, and Unbound runs as an s6 longrun in the foreground.
 
 ### 2. Blacklist Pipeline

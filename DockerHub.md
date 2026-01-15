@@ -35,6 +35,7 @@ docker run --name unbound-blacklist \
 
 ## Highlights
 
+- Extends the `digital-drive.io/tools/unbound` base image.
 - Runs Unbound under s6-overlay with PID 1 set to `/init`.
 - Supports a local blacklist file or HTTP(S) download.
 - Refresh interval for remote blacklist sync.

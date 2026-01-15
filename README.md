@@ -1,9 +1,9 @@
 # README.md
 
-Unbound DNS resolver with a managed IP blacklist source. The image loads
-Unbound on top of `digital-drive.io/debian/trixie` (s6-overlay)
-and generates an Unbound include file from a local blacklist file or a
-remote URL. Image: https://hub.docker.com/r/digitaldriveio/unbound-blacklist
+Unbound DNS resolver with a managed IP blacklist source. This image
+extends the `digital-drive.io/tools/unbound` base and generates an
+Unbound include file from a local blacklist file or a remote URL.
+Image: https://hub.docker.com/r/digitaldriveio/unbound-blacklist
 
 ## Features
 

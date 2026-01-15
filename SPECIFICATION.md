@@ -13,7 +13,7 @@ startup and reloads Unbound when the blacklist changes.
 
 | Component          | Description                                                                 |
 |--------------------|-----------------------------------------------------------------------------|
-| Base image         | `registry.digital-drive.io/debian/trixie` (s6-overlay, Debian Trixie)        |
+| Base image         | `registry.digital-drive.io/tools/unbound`                                   |
 | DNS server         | `unbound` running in the foreground under s6 supervision                    |
 | Blacklist builder  | Startup script renders `/etc/unbound/conf.d/50-blacklist.conf`              |
 | Optional refresher | s6 longrun or cron-based task to re-fetch remote blacklist and reload Unbound |
