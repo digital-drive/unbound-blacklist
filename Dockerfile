@@ -1,4 +1,4 @@
-FROM registry.digital-drive.io/tools/unbound:1.0.0
+FROM registry.digital-drive.io/tools/unbound:1.1
 
 LABEL maintainer="Maxence Winandy <maxence.winandy@digital-drive.io>"
 
