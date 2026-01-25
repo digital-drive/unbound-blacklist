@@ -1,6 +1,14 @@
 # CHANGELOG.md
 
-# 1.0.0 (2026-01-10)
+## [1.1.0](/compare/v1.0.0...v1.1.0) (2026-01-25)
+
+### Bug Fixes
+
+* specify version tag for base image in Dockerfile
+* Follow version 1.1.x of base image.
+
+
+## 1.0.0 (2026-01-10)
 
 ### Features
 
