@@ -1,5 +1,7 @@
 workflow:
   rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
     - if: '$CI_COMMIT_BRANCH == "main"'
       when: always
     - if: '$CI_COMMIT_TAG'
@@ -7,13 +9,14 @@ workflow:
     - when: never
 
 stages:
+  - lint
+  - test
   - build
-  - trigger
   - release
 
 variables:
   DOCKER_IMAGE: "$CI_REGISTRY/tools/unbound-blacklist"
-  DOCKER_HUB_IMAGE: "$DOCKER_HUB_ORG/unbound-blacklist:snapshot"
+  DOCKER_HUB_IMAGE: "$DOCKER_HUB_ORG/unbound-blacklist"
   BUILDER_TARGET_PLATFORMS: "linux/amd64,linux/arm64"
 
 .buildx-default: &buildx-default
@@ -28,6 +31,76 @@ variables:
   tags:
     - docker-runner
 
+lint:
+  stage: lint
+  interruptible: true
+  tags:
+    - docker-runner
+  script:
+    - |
+      set -eu
+      for f in \
+        rootfs/etc/cont-init.d/20-blacklist \
+        rootfs/etc/s6-overlay/s6-rc.d/blacklist-file-watch/run \
+        rootfs/etc/s6-overlay/s6-rc.d/blacklist-refresh/run \
+        rootfs/usr/local/bin/blacklist-sync.sh; do
+        echo "shellcheck $f"
+        docker run --rm -i koalaman/shellcheck:stable -s bash - <"$f"
+      done
+      echo "shellcheck scripts/ci/derive-release-tags.sh"
+      docker run --rm -i koalaman/shellcheck:stable -s sh - <scripts/ci/derive-release-tags.sh
+      echo "hadolint Dockerfile"
+      docker run --rm -i hadolint/hadolint hadolint --ignore DL3008 - <Dockerfile
+
+smoke_test:
+  stage: test
+  interruptible: true
+  tags:
+    - docker-runner
+  variables:
+    TEST_IMAGE: "unbound-blacklist:test-$CI_JOB_ID"
+    TEST_NAME: "unbound-blacklist-test-$CI_JOB_ID"
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - |
+      set -eu
+      wait_for() {
+        i=0
+        until "$@" >/dev/null 2>&1; do
+          i=$((i + 1))
+          if [ "$i" -ge 90 ]; then
+            echo "timeout waiting for: $*" >&2
+            docker logs "$TEST_NAME" >&2 || true
+            return 1
+          fi
+          sleep 1
+        done
+      }
+      docker build -t "$TEST_IMAGE" .
+      printf '192.0.2.1\n2001:db8::1\n198.51.100.0/24 # comment\n</html>\n999.1.1.1\n' >smoke-blacklist.txt
+      docker create --name "$TEST_NAME" "$TEST_IMAGE"
+      docker cp smoke-blacklist.txt "$TEST_NAME:/etc/unbound/blacklist.txt"
+      docker start "$TEST_NAME"
+      wait_for docker exec "$TEST_NAME" grep -q 'response-ip: 192.0.2.1/32 always_nxdomain' /etc/unbound/conf.d/50-blacklist.conf
+      docker exec "$TEST_NAME" unbound-checkconf
+      docker exec "$TEST_NAME" cat /etc/unbound/conf.d/50-blacklist.conf | tee smoke-conf.txt
+      grep -q 'response-ip: 2001:db8::1/128 always_nxdomain' smoke-conf.txt
+      grep -q 'response-ip: 198.51.100.0/24 always_nxdomain' smoke-conf.txt
+      if grep -Eq 'html|999' smoke-conf.txt; then
+        echo "invalid entries were rendered" >&2
+        exit 1
+      fi
+      # Hot reload: a new list must be picked up without restarting.
+      printf '203.0.113.7\n' >smoke-blacklist.txt
+      docker cp smoke-blacklist.txt "$TEST_NAME:/etc/unbound/blacklist.txt"
+      wait_for docker exec "$TEST_NAME" grep -q 'response-ip: 203.0.113.7/32 always_nxdomain' /etc/unbound/conf.d/50-blacklist.conf
+      test "$(docker inspect -f '{{.State.Running}}' "$TEST_NAME")" = "true"
+  after_script:
+    - docker logs "unbound-blacklist-test-$CI_JOB_ID" || true
+    - docker rm -f "unbound-blacklist-test-$CI_JOB_ID" || true
+    - docker rmi "unbound-blacklist:test-$CI_JOB_ID" || true
+
 build_and_push_docker:
   <<: *buildx-default
   stage: build
@@ -37,8 +110,8 @@ build_and_push_docker:
       docker buildx build \
         --platform "$BUILDER_TARGET_PLATFORMS" \
         --label "org.opencontainers.image.revision=$CI_COMMIT_SHA" \
-        -t "$DOCKER_IMAGE" \
-        -t "$DOCKER_HUB_IMAGE" \
+        -t "${DOCKER_IMAGE}:snapshot" \
+        -t "${DOCKER_HUB_IMAGE}:snapshot" \
         --push .
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
@@ -51,15 +124,17 @@ publish_release:
     - |
       set -eu
       . scripts/ci/derive-release-tags.sh
-      DOCKER_HUB_BASE="${DOCKER_HUB_IMAGE%:*}"
+      set -- -t "${DOCKER_IMAGE}:${VERSION}" -t "${DOCKER_HUB_IMAGE}:${VERSION}"
+      if [ "$IS_PRERELEASE" = "false" ]; then
+        for tag in "$MINOR_TAG" "$MAJOR" latest; do
+          set -- "$@" -t "${DOCKER_IMAGE}:${tag}" -t "${DOCKER_HUB_IMAGE}:${tag}"
+        done
+      fi
       docker buildx build \
         --platform "$BUILDER_TARGET_PLATFORMS" \
-        -t "${DOCKER_IMAGE}:${VERSION}" \
-        -t "${DOCKER_IMAGE}:${MINOR_TAG}" \
-        -t "${DOCKER_IMAGE}:${MAJOR}" \
-        -t "${DOCKER_HUB_BASE}:${VERSION}" \
-        -t "${DOCKER_HUB_BASE}:${MINOR_TAG}" \
-        -t "${DOCKER_HUB_BASE}:${MAJOR}" \
+        --label "org.opencontainers.image.revision=$CI_COMMIT_SHA" \
+        --label "org.opencontainers.image.version=$VERSION" \
+        "$@" \
         --push .
   rules:
     - if: '$CI_COMMIT_TAG'

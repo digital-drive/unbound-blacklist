@@ -7,12 +7,23 @@ if [ -z "${CI_COMMIT_TAG:-}" ]; then
 fi
 
 VERSION="${CI_COMMIT_TAG#v}"
-IFS='.' read -r MAJOR MINOR _ <<EOF
+IFS='.' read -r MAJOR MINOR _ <<EOF_VERSION
 $VERSION
-EOF
+EOF_VERSION
 MINOR_TAG="${MAJOR}"
 if [ -n "${MINOR:-}" ]; then
   MINOR_TAG="${MAJOR}.${MINOR}"
 fi
 
-export VERSION MINOR_TAG MAJOR
+# Pre-releases (e.g. 1.2.0-rc.1, 1.0.0-2) only get their exact version tag;
+# moving tags (major, major.minor, latest) are reserved for stable releases.
+case "$VERSION" in
+  *-*|*+*)
+    IS_PRERELEASE="true"
+    ;;
+  *)
+    IS_PRERELEASE="false"
+    ;;
+esac
+
+export VERSION MINOR_TAG MAJOR IS_PRERELEASE
