@@ -21,8 +21,11 @@ reloads Unbound when updates are available.
     - `BLACKLIST_URL` (optional; overrides the local file)
 - The blacklist builder generates
   `/etc/unbound/conf.d/50-blacklist.conf`.
-- IPs/netblocks are rendered as
+- IPs/netblocks are validated, then rendered as
   `response-ip: <ip-netblock> always_nxdomain`.
+- A fragment rejected by `unbound-checkconf` is rolled back and never
+  loaded.
+- Remote lists are cached in `/var/lib/unbound-blacklist`.
 
 ### 3. Runtime Configuration
 
@@ -35,6 +38,7 @@ reloads Unbound when updates are available.
 - `PRIVATE_SUFFIX` selects the private suffix (default `.docker`).
 - `BLACKLIST_REFRESH_SECONDS` enables periodic refresh when using a URL.
 - `BLACKLIST_REFRESH_INITIAL_SECONDS` sets the first delay after the initial sync.
+- `BLACKLIST_FETCH_TIMEOUT` bounds each remote download (default `60`).
 
 ## Expected Behavior
 
@@ -44,10 +48,14 @@ reloads Unbound when updates are available.
 
 ## Files of Interest
 
-- `Dockerfile` builds the Unbound image on Debian Trixie with s6-overlay.
-- `rootfs/etc/cont-init.d/*` renders Unbound config and blacklist fragments.
-- `rootfs/etc/s6-overlay/s6-rc.d/unbound/run` runs Unbound in the foreground.
-- `rootfs/etc/unbound/conf.d/50-blacklist.conf` is generated at runtime.
+- `Dockerfile` extends the base image (Debian Trixie, s6-overlay, Unbound).
+- `rootfs/etc/cont-init.d/20-blacklist` runs the initial blacklist sync.
+- `rootfs/usr/local/bin/blacklist-sync.sh` fetches, validates, renders and
+  reloads.
+- `rootfs/etc/s6-overlay/s6-rc.d/blacklist-refresh/run` refreshes a URL.
+- `rootfs/etc/s6-overlay/s6-rc.d/blacklist-file-watch/run` watches a file.
+- `/etc/unbound/conf.d/50-blacklist.conf` is generated at runtime.
+- `.gitlab-ci.yml` lints, smoke-tests, builds and publishes the image.
 
 ## Guidance
 

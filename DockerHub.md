@@ -25,21 +25,25 @@ docker run --name unbound-blacklist \
 - **Local file:** Mount a blacklist file to `/etc/unbound/blacklist.txt`
   (or change with `BLACKLIST_FILE`).
 - **Remote list:** Set `BLACKLIST_URL` to a reachable HTTP(S) URL.
-- **Refresh cadence:** Set `BLACKLIST_REFRESH_SECONDS` to a value > 0 to
-  re-fetch and reload automatically. Use `BLACKLIST_REFRESH_INITIAL_SECONDS`
-  for the first delay after the initial sync.
+- **Refresh cadence:** Remote lists are re-fetched every
+  `BLACKLIST_REFRESH_SECONDS` (default `600`, `0` disables). Use
+  `BLACKLIST_REFRESH_INITIAL_SECONDS` for the first delay after the initial
+  sync and `BLACKLIST_FETCH_TIMEOUT` (default `60`) to bound each download.
 - **Public upstreams:** Set `PUBLIC_UPSTREAM_SERVERS` to forward public DNS
   queries (`1.1.1.1 8.8.8.8 9.9.9.9`).
 - **Logging:** Control verbosity with `UNBOUND_LOG_LEVEL`.
-- **Access control:** Tune with `DNS_ACCESS_CONTROL` (Unbound format).
+- **Access control:** Tune with `DNS_ACCESS_CONTROL` (Unbound format). The
+  default allows every client: restrict it before exposing port 53 publicly.
 
 ## Highlights
 
-- Extends the `digital-drive.io/tools/unbound` base image.
+- Extends the `registry.digital-drive.io/tools/unbound` base image.
 - Runs Unbound under s6-overlay with PID 1 set to `/init`.
 - Supports a local blacklist file or HTTP(S) download.
 - Refresh interval for remote blacklist sync.
 - Uses `response-ip: <ip-netblock> always_nxdomain` for fast blocking.
+- Invalid entries are skipped, and a fragment rejected by `unbound-checkconf`
+  is never loaded.
 - Exposes standard DNS over UDP/TCP on port 53.
 - DNSSEC validation and EDNS are enabled for modern resolvers.
 - Private reverse zones and a custom suffix are blocked by default unless an upstream is configured.
@@ -49,8 +53,10 @@ docker run --name unbound-blacklist \
 - The generated blacklist fragment is stored under
   `/etc/unbound/conf.d/50-blacklist.conf`.
 - The blacklist file should contain one IP or CIDR netblock per line.
-- Use named volumes if you want the downloaded blacklist cached across
-  container restarts.
+- Mount a volume on `/var/lib/unbound-blacklist` to keep the downloaded
+  blacklist across container re-creations.
+- Tags: `latest`, `<major>`, `<major>.<minor>` and `<version>` for stable
+  releases; `snapshot` follows the main branch.
 
 ## License
 
