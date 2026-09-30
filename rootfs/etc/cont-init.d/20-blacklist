@@ -2,9 +2,6 @@
 
 set -eu
 
+# Never block Unbound startup: on failure the script keeps the previous
+# fragment (or writes an empty one) and logs the reason.
 /usr/local/bin/blacklist-sync.sh || true
-
-if [ -f /etc/unbound/conf.d/50-blacklist.conf ]; then
-  chown unbound:unbound /etc/unbound/conf.d/50-blacklist.conf
-  chmod 640 /etc/unbound/conf.d/50-blacklist.conf
-fi
