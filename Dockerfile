@@ -1,6 +1,10 @@
 FROM registry.digital-drive.io/tools/unbound:1.1
 
-LABEL maintainer="Maxence Winandy <maxence.winandy@digital-drive.io>"
+LABEL maintainer="Maxence Winandy <maxence.winandy@digital-drive.io>" \
+      org.opencontainers.image.title="unbound-blacklist" \
+      org.opencontainers.image.description="Unbound DNS resolver with a managed IP blacklist" \
+      org.opencontainers.image.source="https://github.com/digital-drive/unbound-blacklist" \
+      org.opencontainers.image.licenses="GPL-3.0-only"
 
 RUN set -eux; \
     apt-get update; \
@@ -8,7 +12,8 @@ RUN set -eux; \
         curl \
         inotify-tools \
     ; \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/*; \
+    mkdir -p /var/lib/unbound-blacklist
 
 COPY rootfs/ /
 
