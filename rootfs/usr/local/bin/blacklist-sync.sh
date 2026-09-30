@@ -139,9 +139,9 @@ select_source() {
 }
 
 install_conf() {
-  mv "$1" "$OUTPUT_CONF"
-  chown unbound:unbound "$OUTPUT_CONF"
-  chmod 640 "$OUTPUT_CONF"
+  mv "$1" "$OUTPUT_CONF" || return 1
+  chown unbound:unbound "$OUTPUT_CONF" || return 1
+  chmod 640 "$OUTPUT_CONF" || return 1
 }
 
 config_is_valid() {
@@ -184,7 +184,13 @@ render_conf() {
     backup="$(mktemp /etc/unbound/.50-blacklist.bak.XXXXXX)"
     cp -p "$OUTPUT_CONF" "$backup"
   fi
-  install_conf "$tmp"
+  if ! install_conf "$tmp"; then
+    rm -f "$tmp"
+    [ -n "$backup" ] && rm -f "$backup"
+    OUTPUT_CHANGED="false"
+    log "error: cannot write ${OUTPUT_CONF}"
+    return 1
+  fi
   if config_is_valid; then
     [ -n "$backup" ] && rm -f "$backup"
     return 0
