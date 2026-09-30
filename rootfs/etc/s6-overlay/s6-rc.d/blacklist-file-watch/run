@@ -2,6 +2,8 @@
 
 set -eu
 
+POLL_SECONDS=60
+
 sleep_forever() {
   while true; do
     sleep 3600
@@ -13,22 +15,54 @@ if [ -n "${BLACKLIST_URL:-}" ]; then
 fi
 
 BLACKLIST_FILE="${BLACKLIST_FILE:-/etc/unbound/blacklist.txt}"
-if [ ! -e "$BLACKLIST_FILE" ]; then
-  sleep_forever
-fi
-
-if ! command -v inotifywait >/dev/null 2>&1; then
-  sleep_forever
-fi
-
 watch_dir="$(dirname "$BLACKLIST_FILE")"
-watch_file="$(basename "$BLACKLIST_FILE")"
 
+signature() {
+  if [ -f "$BLACKLIST_FILE" ]; then
+    cksum <"$BLACKLIST_FILE" 2>/dev/null || echo "unreadable"
+  else
+    echo "missing"
+  fi
+}
+
+check_and_sync() {
+  local current
+  current="$(signature)"
+  if [ "$current" != "$last" ]; then
+    last="$current"
+    /usr/local/bin/blacklist-sync.sh </dev/null || true
+  fi
+}
+
+# Watches the file itself (in-place edits, including on a single-file bind
+# mount) and its directory (atomic replace, create, delete). The read timeout
+# doubles as a polling fallback so missed events are still caught.
+watch_changes() {
+  local paths=()
+  [ -d "$watch_dir" ] && paths+=("$watch_dir")
+  [ -e "$BLACKLIST_FILE" ] && paths+=("$BLACKLIST_FILE")
+  if [ "${#paths[@]}" -eq 0 ] || ! command -v inotifywait >/dev/null 2>&1; then
+    sleep "$POLL_SECONDS"
+    check_and_sync
+    return 0
+  fi
+  local rc
+  while true; do
+    rc=0
+    read -r -t "$POLL_SECONDS" _ || rc=$?
+    # 1 = inotifywait exited: return so the watch set is rebuilt.
+    [ "$rc" -eq 1 ] && break
+    # Let a burst of events settle before reading the file.
+    [ "$rc" -eq 0 ] && while read -r -t 1 _; do :; done
+    check_and_sync
+  done < <(inotifywait -m -q \
+    -e close_write -e modify -e attrib -e moved_to -e create -e delete \
+    -e move_self -e delete_self --format '%e' "${paths[@]}" 2>/dev/null)
+  sleep 1
+  check_and_sync
+}
+
+last="$(signature)"
 while true; do
-  inotifywait -q -e close_write -e moved_to -e create -e delete --format '%f' "$watch_dir" \
-    | while read -r name; do
-        if [ "$name" = "$watch_file" ]; then
-          /usr/local/bin/blacklist-sync.sh || true
-        fi
-      done
+  watch_changes
 done
