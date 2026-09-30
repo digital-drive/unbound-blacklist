@@ -26,13 +26,14 @@ if [ -z "${BLACKLIST_URL:-}" ] || [ "$refresh_seconds" -le 0 ]; then
   sleep_forever
 fi
 
-first_run="true"
+# cont-init already synced once. Retry right away only if it found no source
+# (URL unreachable and no cache), otherwise wait for the initial delay first.
+if [ ! -f /run/blacklist-first-sync.done ]; then
+  /usr/local/bin/blacklist-sync.sh || true
+fi
+
+sleep "$initial_seconds"
 while true; do
   /usr/local/bin/blacklist-sync.sh || true
-  if [ "$first_run" = "true" ]; then
-    first_run="false"
-    sleep "$initial_seconds"
-    continue
-  fi
   sleep "$refresh_seconds"
 done
